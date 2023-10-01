@@ -1,10 +1,18 @@
 import { ShareAltOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Row, Space, Tag, Typography } from 'antd';
 import useComponentPermission from 'hooks/useComponentPermission';
+import useDebouncedFn from 'hooks/useDebouncedFunction';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSelector } from 'react-redux';
+import { connect, useSelector } from 'react-redux';
+import { bindActionCreators, Dispatch } from 'redux';
+import { ThunkDispatch } from 'redux-thunk';
+import {
+	UpdateDashboardTitleDescriptionTags,
+	UpdateDashboardTitleDescriptionTagsProps,
+} from 'store/actions';
 import { AppState } from 'store/reducers';
+import AppActions from 'types/actions';
 import AppReducer from 'types/reducer/app';
 import DashboardReducer from 'types/reducer/dashboards';
 
@@ -12,7 +20,9 @@ import DashboardVariableSelection from '../DashboardVariablesSelection';
 import SettingsDrawer from './SettingsDrawer';
 import ShareModal from './ShareModal';
 
-function DescriptionOfDashboard(): JSX.Element {
+function DescriptionOfDashboard({
+	updateDashboardTitleDescriptionTags,
+}: DescriptionOfDashboardProps): JSX.Element {
 	const { dashboards } = useSelector<AppState, DashboardReducer>(
 		(state) => state.dashboards,
 	);
@@ -31,14 +41,37 @@ function DescriptionOfDashboard(): JSX.Element {
 		isIsJSONModalVisible((state) => !state);
 	};
 
+	const saveDashboardMetaData = (title: any): void => {
+		const dashboard = selectedDashboard;
+		updateDashboardTitleDescriptionTags({
+			dashboard: {
+				...dashboard,
+				data: {
+					...dashboard.data,
+					title,
+				},
+			},
+		});
+	};
+
+	const handleTitleUpdate = useDebouncedFn((title): void => {
+		if (title) {
+			saveDashboardMetaData(title);
+		}
+	});
+
 	return (
 		<Card>
 			<Row>
 				<Col style={{ flex: 1 }}>
-					<Typography.Title level={4} style={{ padding: 0, margin: 0 }}>
+					<Typography.Title
+						level={4}
+						editable={{ onChange: handleTitleUpdate }}
+						style={{ padding: 0, margin: 0, marginBottom: 16 }}
+					>
 						{title}
 					</Typography.Title>
-					<Typography>{description}</Typography>
+					<Typography.Text>{description}</Typography.Text>
 					<div style={{ margin: '0.5rem 0' }}>
 						{tags?.map((e) => (
 							<Tag key={e}>{e}</Tag>
@@ -70,5 +103,21 @@ function DescriptionOfDashboard(): JSX.Element {
 		</Card>
 	);
 }
+interface DispatchProps {
+	updateDashboardTitleDescriptionTags: (
+		props: UpdateDashboardTitleDescriptionTagsProps,
+	) => (dispatch: Dispatch<AppActions>) => void;
+}
 
-export default DescriptionOfDashboard;
+const mapDispatchToProps = (
+	dispatch: ThunkDispatch<unknown, unknown, AppActions>,
+): DispatchProps => ({
+	updateDashboardTitleDescriptionTags: bindActionCreators(
+		UpdateDashboardTitleDescriptionTags,
+		dispatch,
+	),
+});
+
+type DescriptionOfDashboardProps = DispatchProps;
+
+export default connect(null, mapDispatchToProps)(DescriptionOfDashboard);

@@ -1,11 +1,12 @@
 import { PlusOutlined } from '@ant-design/icons';
 import {
 	Card,
+	Col,
 	Dropdown,
+	Input,
 	MenuProps,
 	Row,
 	TableColumnProps,
-	Typography,
 } from 'antd';
 import { ItemType } from 'antd/es/menu/hooks/useItems';
 import createDashboard from 'api/dashboard/create';
@@ -13,9 +14,9 @@ import { AxiosError } from 'axios';
 import { ResizeTable } from 'components/ResizeTable';
 import TextToolTip from 'components/TextToolTip';
 import ROUTES from 'constants/routes';
-import SearchFilter from 'container/ListOfDashboard/SearchFilter';
 import { useGetAllDashboard } from 'hooks/dashboard/useGetAllDashboard';
 import useComponentPermission from 'hooks/useComponentPermission';
+import useDebouncedFn from 'hooks/useDebouncedFunction';
 import history from 'lib/history';
 import {
 	Dispatch,
@@ -47,6 +48,8 @@ import Name from './TableComponents/Name';
 import Tags from './TableComponents/Tags';
 
 function ListOfAllDashboard(): JSX.Element {
+	const { Search } = Input;
+
 	const {
 		data: dashboardListResponse = [],
 		isLoading: isDashboardListLoading,
@@ -69,12 +72,20 @@ function ListOfAllDashboard(): JSX.Element {
 	] = useState<boolean>(false);
 
 	const [uploadedGrafana, setUploadedGrafana] = useState<boolean>(false);
+	const [isFilteringDashboards, setIsFilteringDashboards] = useState(false);
 
-	const [filteredDashboards, setFilteredDashboards] = useState<Dashboard[]>();
+	const [dashboards, setDashboards] = useState<Dashboard[]>();
+
+	const sortDashboardsByCreatedAt = (dashboards: Dashboard[]): void => {
+		const sortedDashboards = dashboards.sort(
+			(a, b) => new Date(b.created_at) - new Date(a.created_at),
+		);
+		setDashboards(sortedDashboards);
+	};
 
 	useEffect(() => {
 		if (dashboardListResponse.length) {
-			setFilteredDashboards(dashboardListResponse);
+			sortDashboardsByCreatedAt(dashboardListResponse);
 		}
 	}, [dashboardListResponse]);
 
@@ -161,7 +172,7 @@ function ListOfAllDashboard(): JSX.Element {
 	}, [action, refetchDashboardList]);
 
 	const data: Data[] =
-		filteredDashboards?.map((e) => ({
+		dashboards?.map((e) => ({
 			createdBy: e.created_at,
 			description: e.data.description || '',
 			id: e.uuid,
@@ -267,41 +278,84 @@ function ListOfAllDashboard(): JSX.Element {
 		[getMenuItems],
 	);
 
+	const searchArrayOfObjects = (searchValue: string): any[] => {
+		// Convert the searchValue to lowercase for case-insensitive search
+		const searchValueLowerCase = searchValue.toLowerCase();
+
+		// Use the filter method to find matching objects
+		return dashboardListResponse.filter((item: any) => {
+			// Convert each property value to lowercase for case-insensitive search
+			const itemValues = Object.values(item?.data).map((value: any) =>
+				value.toString().toLowerCase(),
+			);
+
+			// Check if any property value contains the searchValue
+			return itemValues.some((value) => value.includes(searchValueLowerCase));
+		});
+	};
+
+	const handleSearch = useDebouncedFn((event: React.SyntheticEvent): void => {
+		setIsFilteringDashboards(true);
+		const searchText = event?.target?.value || '';
+		const filteredDashboards = searchArrayOfObjects(searchText);
+		setDashboards(filteredDashboards);
+		setIsFilteringDashboards(false);
+	}, 500);
+
 	const GetHeader = useMemo(
 		() => (
-			<Row justify="space-between">
-				<Typography>Dashboard List</Typography>
-
-				<ButtonContainer>
-					<TextToolTip
-						{...{
-							text: `More details on how to create dashboards`,
-							url: 'https://signoz.io/docs/userguide/dashboards',
-						}}
+			<Row gutter={16} align="middle">
+				<Col span={18}>
+					<Search
+						disabled={isDashboardListLoading}
+						placeholder="Search by Name, Description, Tags"
+						onChange={handleSearch}
+						loading={isFilteringDashboards}
+						style={{ marginBottom: 16, marginTop: 16 }}
 					/>
-					{newDashboard && (
-						<Dropdown
-							getPopupContainer={popupContainer}
-							disabled={isDashboardListLoading}
-							trigger={['click']}
-							menu={menu}
-						>
-							<NewDashboardButton
-								icon={<PlusOutlined />}
-								type="primary"
-								loading={newDashboardState.loading}
-								danger={newDashboardState.error}
+				</Col>
+
+				<Col
+					span={6}
+					style={{
+						display: 'flex',
+						justifyContent: 'flex-end',
+					}}
+				>
+					<ButtonContainer>
+						<TextToolTip
+							{...{
+								text: `More details on how to create dashboards`,
+								url: 'https://signoz.io/docs/userguide/dashboards',
+							}}
+						/>
+						{newDashboard && (
+							<Dropdown
+								getPopupContainer={popupContainer}
+								disabled={isDashboardListLoading}
+								trigger={['click']}
+								menu={menu}
 							>
-								{getText()}
-							</NewDashboardButton>
-						</Dropdown>
-					)}
-				</ButtonContainer>
+								<NewDashboardButton
+									icon={<PlusOutlined />}
+									type="primary"
+									loading={newDashboardState.loading}
+									danger={newDashboardState.error}
+								>
+									{getText()}
+								</NewDashboardButton>
+							</Dropdown>
+						)}
+					</ButtonContainer>
+				</Col>
 			</Row>
 		),
 		[
-			newDashboard,
+			Search,
 			isDashboardListLoading,
+			handleSearch,
+			isFilteringDashboards,
+			newDashboard,
 			menu,
 			newDashboardState.loading,
 			newDashboardState.error,
@@ -313,24 +367,19 @@ function ListOfAllDashboard(): JSX.Element {
 		<Card>
 			{GetHeader}
 
-			{!isDashboardListLoading && (
-				<SearchFilter
-					searchData={dashboardListResponse}
-					filterDashboards={setFilteredDashboards}
-				/>
-			)}
-
 			<TableContainer>
 				<ImportJSON
 					isImportJSONModalVisible={isImportJSONModalVisible}
 					uploadedGrafana={uploadedGrafana}
 					onModalHandler={(): void => onModalHandler(false)}
 				/>
+
 				<ResizeTable
 					columns={columns}
 					pagination={{
-						pageSize: 9,
-						defaultPageSize: 9,
+						pageSize: 10,
+						defaultPageSize: 10,
+						total: data?.length || 0,
 					}}
 					showHeader
 					bordered

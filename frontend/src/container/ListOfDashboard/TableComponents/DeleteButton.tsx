@@ -1,5 +1,5 @@
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { Modal } from 'antd';
+import { Modal, Typography } from 'antd';
 import { useCallback } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators, Dispatch } from 'redux';
@@ -12,6 +12,7 @@ import { TableLinkText } from './styles';
 
 function DeleteButton({
 	deleteDashboard,
+	name,
 	id,
 	refetchDashboardList,
 }: DeleteButtonProps): JSX.Element {
@@ -19,7 +20,13 @@ function DeleteButton({
 
 	const openConfirmationDialog = useCallback((): void => {
 		modal.confirm({
-			title: 'Do you really want to delete this dashboard?',
+			title: (
+				<Typography.Title level={5}>
+					Are you sure you want to delete the
+					<span style={{ color: '#e42b35', fontWeight: 500 }}> {name} </span>
+					dashboard?
+				</Typography.Title>
+			),
 			icon: <ExclamationCircleOutlined style={{ color: '#e42b35' }} />,
 			onOk() {
 				deleteDashboard({
@@ -31,7 +38,7 @@ function DeleteButton({
 			okButtonProps: { danger: true },
 			centered: true,
 		});
-	}, [modal, deleteDashboard, id, refetchDashboardList]);
+	}, [name, modal, deleteDashboard, id, refetchDashboardList]);
 
 	return (
 		<>
