@@ -1,35 +1,24 @@
 import { ShareAltOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Row, Space, Tag, Typography } from 'antd';
+import { useUpdateDashboard } from 'hooks/dashboard/useUpdateDashboard';
 import useComponentPermission from 'hooks/useComponentPermission';
 import useDebouncedFn from 'hooks/useDebouncedFunction';
+import { useDashboard } from 'providers/Dashboard/Dashboard';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { connect, useSelector } from 'react-redux';
-import { bindActionCreators, Dispatch } from 'redux';
-import { ThunkDispatch } from 'redux-thunk';
-import {
-	UpdateDashboardTitleDescriptionTags,
-	UpdateDashboardTitleDescriptionTagsProps,
-} from 'store/actions';
+import { useSelector } from 'react-redux';
 import { AppState } from 'store/reducers';
-import AppActions from 'types/actions';
 import AppReducer from 'types/reducer/app';
-import DashboardReducer from 'types/reducer/dashboards';
 
 import DashboardVariableSelection from '../DashboardVariablesSelection';
 import SettingsDrawer from './SettingsDrawer';
 import ShareModal from './ShareModal';
 
-function DescriptionOfDashboard({
-	updateDashboardTitleDescriptionTags,
-}: DescriptionOfDashboardProps): JSX.Element {
-	const { dashboards } = useSelector<AppState, DashboardReducer>(
-		(state) => state.dashboards,
-	);
+function DescriptionOfDashboard(): JSX.Element {
+	const { selectedDashboard } = useDashboard();
 
-	const [selectedDashboard] = dashboards;
-	const selectedData = selectedDashboard.data;
-	const { title, tags, description } = selectedData;
+	const selectedData = selectedDashboard?.data;
+	const { title, tags, description } = selectedData || {};
 
 	const [isJSONModalVisible, isIsJSONModalVisible] = useState<boolean>(false);
 
@@ -41,21 +30,22 @@ function DescriptionOfDashboard({
 		isIsJSONModalVisible((state) => !state);
 	};
 
-	const saveDashboardMetaData = (title: any): void => {
-		const dashboard = selectedDashboard;
-		updateDashboardTitleDescriptionTags({
-			dashboard: {
-				...dashboard,
-				data: {
-					...dashboard.data,
-					title,
-				},
+	const updateDashboardMutation = useUpdateDashboard();
+
+	const saveDashboardMetaData = (title: string): void => {
+		if (!selectedDashboard) return;
+
+		updateDashboardMutation.mutateAsync({
+			...selectedDashboard,
+			data: {
+				...selectedDashboard.data,
+				title,
 			},
 		});
 	};
 
-	const handleTitleUpdate = useDebouncedFn((title): void => {
-		if (title) {
+	const handleTitleUpdate = useDebouncedFn((title: unknown): void => {
+		if (title && typeof title === 'string') {
 			saveDashboardMetaData(title);
 		}
 	});
@@ -63,7 +53,7 @@ function DescriptionOfDashboard({
 	return (
 		<Card>
 			<Row>
-				<Col style={{ flex: 1 }}>
+				<Col flex={1}>
 					<Typography.Title
 						level={4}
 						editable={{ onChange: handleTitleUpdate }}
@@ -72,21 +62,24 @@ function DescriptionOfDashboard({
 						{title}
 					</Typography.Title>
 					<Typography.Text>{description}</Typography.Text>
+
 					<div style={{ margin: '0.5rem 0' }}>
-						{tags?.map((e) => (
-							<Tag key={e}>{e}</Tag>
+						{tags?.map((tag) => (
+							<Tag key={tag}>{tag}</Tag>
 						))}
 					</div>
+
 					<DashboardVariableSelection />
 				</Col>
 				<Col>
-					<ShareModal
-						{...{
-							isJSONModalVisible,
-							onToggleHandler,
-							selectedData,
-						}}
-					/>
+					{selectedData && (
+						<ShareModal
+							isJSONModalVisible={isJSONModalVisible}
+							onToggleHandler={onToggleHandler}
+							selectedData={selectedData}
+						/>
+					)}
+
 					<Space direction="vertical">
 						{editDashboard && <SettingsDrawer />}
 						<Button
@@ -103,21 +96,5 @@ function DescriptionOfDashboard({
 		</Card>
 	);
 }
-interface DispatchProps {
-	updateDashboardTitleDescriptionTags: (
-		props: UpdateDashboardTitleDescriptionTagsProps,
-	) => (dispatch: Dispatch<AppActions>) => void;
-}
 
-const mapDispatchToProps = (
-	dispatch: ThunkDispatch<unknown, unknown, AppActions>,
-): DispatchProps => ({
-	updateDashboardTitleDescriptionTags: bindActionCreators(
-		UpdateDashboardTitleDescriptionTags,
-		dispatch,
-	),
-});
-
-type DescriptionOfDashboardProps = DispatchProps;
-
-export default connect(null, mapDispatchToProps)(DescriptionOfDashboard);
+export default DescriptionOfDashboard;

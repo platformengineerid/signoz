@@ -1,22 +1,19 @@
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { Modal, Typography } from 'antd';
+import { REACT_QUERY_KEY } from 'constants/reactQueryKeys';
+import { useDeleteDashboard } from 'hooks/dashboard/useDeleteDashboard';
 import { useCallback } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators, Dispatch } from 'redux';
-import { ThunkDispatch } from 'redux-thunk';
-import { DeleteDashboard, DeleteDashboardProps } from 'store/actions';
-import AppActions from 'types/actions';
+import { useQueryClient } from 'react-query';
 
 import { Data } from '../index';
 import { TableLinkText } from './styles';
 
-function DeleteButton({
-	deleteDashboard,
-	name,
-	id,
-	refetchDashboardList,
-}: DeleteButtonProps): JSX.Element {
+function DeleteButton({ id, name }: Data): JSX.Element {
 	const [modal, contextHolder] = Modal.useModal();
+
+	const queryClient = useQueryClient();
+
+	const deleteDashboardMutation = useDeleteDashboard(id);
 
 	const openConfirmationDialog = useCallback((): void => {
 		modal.confirm({
@@ -29,16 +26,17 @@ function DeleteButton({
 			),
 			icon: <ExclamationCircleOutlined style={{ color: '#e42b35' }} />,
 			onOk() {
-				deleteDashboard({
-					uuid: id,
-					refetch: refetchDashboardList,
+				deleteDashboardMutation.mutateAsync(undefined, {
+					onSuccess: () => {
+						queryClient.invalidateQueries([REACT_QUERY_KEY.GET_ALL_DASHBOARDS]);
+					},
 				});
 			},
 			okText: 'Delete',
 			okButtonProps: { danger: true },
 			centered: true,
 		});
-	}, [name, modal, deleteDashboard, id, refetchDashboardList]);
+	}, [modal, name, deleteDashboardMutation, queryClient]);
 
 	return (
 		<>
@@ -51,46 +49,32 @@ function DeleteButton({
 	);
 }
 
-interface DispatchProps {
-	deleteDashboard: ({
-		uuid,
-	}: DeleteDashboardProps) => (dispatch: Dispatch<AppActions>) => void;
-}
-
-const mapDispatchToProps = (
-	dispatch: ThunkDispatch<unknown, unknown, AppActions>,
-): DispatchProps => ({
-	deleteDashboard: bindActionCreators(DeleteDashboard, dispatch),
-});
-
-export type DeleteButtonProps = Data & DispatchProps;
-
-const WrapperDeleteButton = connect(null, mapDispatchToProps)(DeleteButton);
-
 // This is to avoid the type collision
 function Wrapper(props: Data): JSX.Element {
 	const {
-		createdBy,
+		createdAt,
 		description,
 		id,
 		key,
-		refetchDashboardList,
 		lastUpdatedTime,
 		name,
 		tags,
+		createdBy,
+		lastUpdatedBy,
 	} = props;
 
 	return (
-		<WrapperDeleteButton
+		<DeleteButton
 			{...{
-				createdBy,
+				createdAt,
 				description,
 				id,
 				key,
 				lastUpdatedTime,
 				name,
 				tags,
-				refetchDashboardList,
+				createdBy,
+				lastUpdatedBy,
 			}}
 		/>
 	);
