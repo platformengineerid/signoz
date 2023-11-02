@@ -68,7 +68,8 @@ function ListOfAllDashboard(): JSX.Element {
 
 	const sortDashboardsByCreatedAt = (dashboards: Dashboard[]): void => {
 		const sortedDashboards = dashboards.sort(
-			(a, b) => new Date(b.created_at) - new Date(a.created_at),
+			(a, b) =>
+				new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
 		);
 		setDashboards(sortedDashboards);
 	};
@@ -167,11 +168,11 @@ function ListOfAllDashboard(): JSX.Element {
 			createdBy: e.created_at,
 			description: e.data.description || '',
 			id: e.uuid,
+			createdAt: e.created_at,
 			lastUpdatedTime: e.updated_at,
 			name: e.data.title,
 			tags: e.data.tags || [],
 			key: e.uuid,
-			createdBy: e.created_by,
 			lastUpdatedBy: e.updated_by,
 			refetchDashboardList,
 		})) || [];
@@ -283,9 +284,9 @@ function ListOfAllDashboard(): JSX.Element {
 		});
 	};
 
-	const handleSearch = useDebouncedFn((event: React.SyntheticEvent): void => {
+	const handleSearch = useDebouncedFn((event: unknown): void => {
 		setIsFilteringDashboards(true);
-		const searchText = event?.target?.value || '';
+		const searchText = (event as React.BaseSyntheticEvent)?.target?.value || '';
 		const filteredDashboards = searchArrayOfObjects(searchText);
 		setDashboards(filteredDashboards);
 		setIsFilteringDashboards(false);

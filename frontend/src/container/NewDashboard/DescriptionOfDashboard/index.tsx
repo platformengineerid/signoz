@@ -15,7 +15,7 @@ import SettingsDrawer from './SettingsDrawer';
 import ShareModal from './ShareModal';
 
 function DescriptionOfDashboard(): JSX.Element {
-	const { selectedDashboard } = useDashboard();
+	const { selectedDashboard, setSelectedDashboard } = useDashboard();
 
 	const selectedData = selectedDashboard?.data;
 	const { title, tags, description } = selectedData || {};
@@ -35,13 +35,22 @@ function DescriptionOfDashboard(): JSX.Element {
 	const saveDashboardMetaData = (title: string): void => {
 		if (!selectedDashboard) return;
 
-		updateDashboardMutation.mutateAsync({
-			...selectedDashboard,
-			data: {
-				...selectedDashboard.data,
-				title,
+		updateDashboardMutation.mutateAsync(
+			{
+				...selectedDashboard,
+				data: {
+					...selectedDashboard.data,
+					title,
+				},
 			},
-		});
+			{
+				onSuccess: (response) => {
+					if (response.payload) {
+						setSelectedDashboard(response.payload);
+					}
+				},
+			},
+		);
 	};
 
 	const handleTitleUpdate = useDebouncedFn((title: unknown): void => {
